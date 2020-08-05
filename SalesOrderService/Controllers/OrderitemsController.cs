@@ -26,6 +26,16 @@ namespace SalesOrderService.Controllers {
             return await _context.Orderitems.ToListAsync();
         }
 
+        private void RecalculateTotel(int orderId) {
+            var order = _context.Orders.Find(orderId);
+            if(order == null) throw new Exception("Cannot find order for recalculation!");
+            order.Total = (from oi in order.Orderitems
+                           select new {
+                               LineTotal = oi.Quantity * oi.Item.Price
+                           }).Sum(x => x.LineTotal);
+            _context.SaveChanges();
+        }        
+
         // GET: api/Orderitems/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Orderitem>> GetOrderitem(int id) {
@@ -51,6 +61,9 @@ namespace SalesOrderService.Controllers {
 
             try {
                 await _context.SaveChangesAsync();
+                _context.Entry(orderitem).State = EntityState.Detached;
+                _context.Orderitems.Find(orderitem.Id); // refresh the cache
+                RecalculateTotel(orderitem.OrderId);
             } catch(DbUpdateConcurrencyException) {
                 if(!OrderitemExists(id)) {
                     return NotFound();
@@ -69,6 +82,9 @@ namespace SalesOrderService.Controllers {
         public async Task<ActionResult<Orderitem>> PostOrderitem(Orderitem orderitem) {
             _context.Orderitems.Add(orderitem);
             await _context.SaveChangesAsync();
+            _context.Entry(orderitem).State = EntityState.Detached;
+            _context.Orderitems.Find(orderitem.Id); // refresh the cache
+            RecalculateTotel(orderitem.OrderId);
 
             return CreatedAtAction("GetOrderitem", new { id = orderitem.Id }, orderitem);
         }
@@ -83,6 +99,8 @@ namespace SalesOrderService.Controllers {
 
             _context.Orderitems.Remove(orderitem);
             await _context.SaveChangesAsync();
+
+            RecalculateTotel(orderitem.OrderId);
 
             return orderitem;
         }

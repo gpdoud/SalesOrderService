@@ -15,7 +15,9 @@ namespace SalesOrderService.Models {
         [Column(TypeName = "decimal(12,2)")]
         public decimal Total { get; set; }
         public int CustomerId { get; set; }
+
         public virtual Customer Customer { get; set; }
+        public virtual IEnumerable<Orderitem> Orderitems { get; set; }
 
         public Order() {
 
